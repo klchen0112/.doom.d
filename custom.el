@@ -5,7 +5,10 @@
  ;; If there is more than one, they won't work right.
  '(warning-suppress-log-types '((initialization)))
  '(warning-suppress-types
-   '(((yasnippet zombie))
+   '((websocket)
+     (websocket)
+     (websocket)
+     ((yasnippet zombie))
      ((yasnippet zombie))
      ((yasnippet zombie))
      ((yasnippet zombie))

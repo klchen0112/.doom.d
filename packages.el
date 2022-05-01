@@ -54,3 +54,4 @@
 (package! org-roam-timestamps)
 (package! org-transclusion)
 
+(package! org-fragtog )

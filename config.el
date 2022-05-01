@@ -6,6 +6,7 @@
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
+
 (setq user-full-name "klchen0112"
     user-mail-address "klchen0112@gmail.com")
 
@@ -30,7 +31,7 @@
 (global-subword-mode 1)                           ; Iterate through CamelCase words
 
 ;; Framing Size
-(add-to-list 'default-frame-alist '(height . 60))
+(add-to-list 'default-frame-alist '(height . 45))
 (add-to-list 'default-frame-alist '(width . 80))
 
 ;; Windows
@@ -38,7 +39,6 @@
 (defadvice! prompt-for-buffer (&rest _)
   :after '(evil-window-split evil-window-vsplit)
   (consult-buffer))
-
 
 
 ;; Doom exposes five (optional) variables for controlling fonts in Doom:
@@ -61,13 +61,28 @@
 ;; refresh your font settings. If Emacs still can't find your font, it likely
 ;; wasn't installed correctly. Font issues are rarely Doom issues!
 
-(defvar required-fonts '("JetBrainsMono.*" "Overpass" "JuliaMono" "IBM Plex Mono" "Merriweather" "Alegreya"))
+(defun +my/better-font()
+  (interactive)
+  ;; english font
+  (if (display-graphic-p)
+      (progn
+        (set-face-attribute 'default nil :font (format "%s:pixelsize=%d" "Fira Code" 17)) ;; 11 13 17 19 23
+        ;; chinese font
+        (dolist (charset '(kana han symbol cjk-misc bopomofo))
+          (set-fontset-font (frame-parameter nil 'font)
+                            charset
+                            (font-spec :family "Sarasa Mono SC")))) ;; 14 16 20 22 28
+    ))
 
-(setq doom-font (font-spec :family "JetBrains Mono" :size 16)
-      doom-big-font (font-spec :family "JetBrains Mono" :size 18)
-      doom-variable-pitch-font (font-spec :family "Overpass" :size 20)
-      doom-unicode-font (font-spec :family "JuliaMono")
-      doom-serif-font (font-spec :family "IBM Plex Mono" :weight 'light))
+(defun +my|init-font(frame)
+  (with-selected-frame frame
+    (if (display-graphic-p)
+        (+my/better-font))))
+
+(if (and (fboundp 'daemonp) (daemonp))
+    (add-hook 'after-make-frame-functions #'+my|init-font)
+  (+my/better-font))
+
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
@@ -81,7 +96,7 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/logseqPrivate" ; let's put files here
+(setq org-directory "~/.org" ; let's put files here
       org-use-property-inheritance t              ; it's convenient to have properties inherited
       org-log-done 'time                          ; having the time a item is done sounds convenient
       org-list-allow-alphabetical t               ; have a. A. a) A) list bullets
@@ -117,21 +132,50 @@
              org-roam-capture
              org-roam-node-find)
   :custom
-  (org-roam-directory "~/logseqPrivate")
+  (org-roam-directory "~/.org")
+  (org-roam-dailies-directory "journals")
+  (org-roam-db-gc-threshold most-positive-fixnum)
   (setq org-roam-file-extensions '("org"))
   (setq org-id-link-to-org-use-id t)
   (setq org-roam-completion-everywhere t)
+  (setq org-roam-dailies-capture-template
+        (let ((head "#+title: %<%Y/%m/%d (%A)>\n#+startup: showall\n* [/] Do Today\n* [/] Maybe Do Today\n* Journal\n"))
+            `(("j" "journal" entry
+               #'org-roam-capture--get-point
+               "* %<%H:%M> %?"
+               :file-name "journals/%<%Y_%m_%d>"
+               :head ,head
+               :olp ("Journal"))
+              ("t" "do today" item
+               #'org-roam-capture--get-point
+               "[ ] %(princ as/agenda-captured-link)"
+               :file-name "journals/%<%Y_%m_%d>"
+               :head ,head
+               :olp ("Do Today")
+               :immediate-finish t)
+              ("m" "maybe do today" item
+               #'org-roam-capture--get-point
+               "[ ] %(princ as/agenda-captured-link)"
+               :file-name "journals/%<%Y_%m_%d>"
+               :head ,head
+               :olp ("Maybe Do Today")
+               :immediate-finish t)))
+   )
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
                  :target (file+head "~/logseqPrivate/pages/${slug}.org"
                                     "${title}\n#+public: true")
                  :unnarrowed t)
                 ))
-  :bind (("C-c n l" . org-roam-buffer-toggle)
+  :bind (("C-c n a" . org-id-get-create)
+         ("C-c n l" . org-roam-buffer-toggle)
          ("C-c n f" . org-roam-node-find)
          ("C-c n g" . org-roam-graph)
          ("C-c n i" . org-roam-node-insert)
          ("C-c n c" . org-roam-capture)
+         ("C-c n r" . org-roam-ref-find)
+         ("C-c n R" . org-roam-ref-add)
+         ("C-c n s" . org-roam-db-sync)
          ;; Dailies
          ("C-c n j" . org-roam-dailies-capture-today))
   :config
@@ -156,11 +200,7 @@
           org-roam-ui-follow t
           org-roam-ui-update-on-save t
           org-roam-ui-open-on-start t)
-    (defun org-roam-ui-open ()
-      "Ensure the server is active, then open the roam graph."
-      (interactive)
-      (unless org-roam-ui-mode (org-roam-ui-mode 1))
-      (browse-url-xdg-open (format "http://localhost:%d" org-roam-ui-port))))
+    )
 
 ;;自动创建笔记的创建时间和修改时间
 (use-package! org-roam-timestamps
@@ -177,17 +217,61 @@
    :leader
    :prefix "n"
    :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
+;; org latex
+(add-hook 'org-mode-hook 'org-fragtog-mode)
 
 ;; Company Mode
-(after! company
-  (setq company-idle-delay 0.5
-        company-minimum-prefix-length 2)
-  (setq company-show-quick-access t)
-  (add-hook 'evil-normal-state-entry-hook #'company-abort)) ;; make aborting less annoying.
-(setq-default history-length 1000)
-(setq-default prescient-history-length 1000)
-
 ;; Plain Text Company
+(require 'company-elisp)
+(setq company-idle-delay 0.4)
+(setq company-show-numbers t)
+(setq company-elisp-detect-function-context nil)
+(setq company-minimum-prefix-length 3)
+
+(setq company-frontends
+      '(company-pseudo-tooltip-unless-just-one-frontend
+        company-preview-if-just-one-frontend))
+
+(setq company-backends
+      '(company-elisp
+        ;; company-semantic
+        company-capf
+        (company-dabbrev-code company-gtags company-etags
+         company-keywords)
+        company-files
+        company-dabbrev))
+
+(defun ora-company-number ()
+  "Forward to `company-complete-number'.
+
+Unless the number is potentially part of the candidate.
+In that case, insert the number."
+  (interactive)
+  (let* ((k (this-command-keys))
+         (re (concat "^" company-prefix k)))
+    (if (or (cl-find-if (lambda (s) (string-match re s))
+                        company-candidates)
+            (> (string-to-number k)
+               (length company-candidates))
+            (looking-back "[0-9]+\\.[0-9]*" (line-beginning-position)))
+        (self-insert-command 1)
+      (company-complete-number
+       (if (equal k "0")
+           10
+         (string-to-number k))))))
+
+(defun ora--company-good-prefix-p (orig-fn prefix)
+  (unless (and (stringp prefix) (string-match-p "\\`[0-9]+\\'" prefix))
+    (funcall orig-fn prefix)))
+
+(let ((map company-active-map))
+  (mapc (lambda (x) (define-key map (format "%d" x) 'ora-company-number))
+        (number-sequence 0 9))
+  (define-key map " " (lambda ()
+                        (interactive)
+                        (company-abort)
+                        (self-insert-command 1)))
+  (define-key map (kbd "<return>") nil))
 (set-company-backend!
   '(text-mode
     markdown-mode
@@ -197,34 +281,7 @@
     company-files
     company-yasnippet))
 ;; LSP MODE
-(cl-defmacro lsp-org-babel-enable (lang)
-  "Support LANG in org source code block."
-  (setq centaur-lsp 'lsp-mode)
-  (cl-check-type lang stringp)
-  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
-         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
-    `(progn
-       (defun ,intern-pre (info)
-         (let ((file-name (->> info caddr (alist-get :file))))
-           (unless file-name
-             (setq file-name (make-temp-file "babel-lsp-")))
-           (setq buffer-file-name file-name)
-           (lsp-deferred)))
-       (put ',intern-pre 'function-documentation
-            (format "Enable lsp-mode in the buffer of org source block (%s)."
-                    (upcase ,lang)))
-       (if (fboundp ',edit-pre)
-           (advice-add ',edit-pre :after ',intern-pre)
-         (progn
-           (defun ,edit-pre (info)
-             (,intern-pre info))
-           (put ',edit-pre 'function-documentation
-                (format "Prepare local buffer environment for org source block (%s)."
-                        (upcase ,lang))))))))
-(defvar org-babel-lang-list
-  '("C++" "C" "python" "ipython" "bash" "sh"))
-(dolist (lang org-babel-lang-list)
-  (eval `(lsp-org-babel-enable ,lang)))
+
 
 ;; Which-key
 ;; DOOM EMACS key help
