@@ -124,7 +124,6 @@
 ;; - `add-load-path!' for adding directories to the `load-path', relative to
 ;;   this file. Emacs searches the `load-path' when you load packages with
 (use-package org-roam
-  :ensure t
   :after org
   :init
   :commands (org-roam-buffer
@@ -163,7 +162,7 @@
    )
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
-                 :target (file+head "~/logseqPrivate/pages/${slug}.org"
+                 :target (file+head "~/.org/pages/${slug}.org"
                                     "${title}\n#+public: true")
                  :unnarrowed t)
                 ))
@@ -223,7 +222,7 @@
 ;; Company Mode
 ;; Plain Text Company
 (require 'company-elisp)
-(setq company-idle-delay 0.4)
+(setq company-idle-delay 0.2)
 (setq company-show-numbers t)
 (setq company-elisp-detect-function-context nil)
 (setq company-minimum-prefix-length 3)
@@ -285,7 +284,7 @@ In that case, insert the number."
 
 ;; Which-key
 ;; DOOM EMACS key help
-(setq which-key-idle-delay 0.5) ;; I need the help, I really do
+(setq which-key-idle-delay 0.2) ;; I need the help, I really do
 
 ;; ispell
 

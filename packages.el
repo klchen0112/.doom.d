@@ -53,5 +53,5 @@
 (package! org-roam-ui)
 (package! org-roam-timestamps)
 (package! org-transclusion)
-
-(package! org-fragtog )
+(package! org-fragtog
+  :recipe (:host github :repo "io12/org-fragtog"))
