@@ -55,3 +55,4 @@
 (package! org-transclusion)
 (package! org-fragtog
   :recipe (:host github :repo "io12/org-fragtog"))
+(package! rime)

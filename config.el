@@ -137,33 +137,13 @@
   (setq org-roam-file-extensions '("org"))
   (setq org-id-link-to-org-use-id t)
   (setq org-roam-completion-everywhere t)
-  (setq org-roam-dailies-capture-template
-        (let ((head "#+title: %<%Y/%m/%d (%A)>\n#+startup: showall\n* [/] Do Today\n* [/] Maybe Do Today\n* Journal\n"))
-            `(("j" "journal" entry
-               #'org-roam-capture--get-point
-               "* %<%H:%M> %?"
-               :file-name "journals/%<%Y_%m_%d>"
-               :head ,head
-               :olp ("Journal"))
-              ("t" "do today" item
-               #'org-roam-capture--get-point
-               "[ ] %(princ as/agenda-captured-link)"
-               :file-name "journals/%<%Y_%m_%d>"
-               :head ,head
-               :olp ("Do Today")
-               :immediate-finish t)
-              ("m" "maybe do today" item
-               #'org-roam-capture--get-point
-               "[ ] %(princ as/agenda-captured-link)"
-               :file-name "journals/%<%Y_%m_%d>"
-               :head ,head
-               :olp ("Maybe Do Today")
-               :immediate-finish t)))
-   )
+  (org-roam-dailies-capture-templates
+    '(("d" "default" entry "* %<%I:%M %p>: %?"
+       :if-new (file+head "%<%Y_%m_%d>.org" "%<%Y/%m/%d>\n* tags\n"))))
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
                  :target (file+head "~/.org/pages/${slug}.org"
-                                    "${title}\n#+public: true")
+                                    "${title}\n#+public: true\n* tags\n")
                  :unnarrowed t)
                 ))
   :bind (("C-c n a" . org-id-get-create)
@@ -182,7 +162,10 @@
   (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
   (org-roam-db-autosync-mode)
   ;; If using org-roam-protocol
-  (require 'org-roam-protocol))
+  (require 'org-roam-protocol)
+  ;; Ensure the keymap is available
+  (require 'org-roam-dailies)
+  )
 (use-package! websocket
     :after org-roam)
 
@@ -223,7 +206,7 @@
 ;; Plain Text Company
 (require 'company-elisp)
 (setq company-idle-delay 0.2)
-(setq company-show-numbers t)
+(setq company-show-quick-access t)
 (setq company-elisp-detect-function-context nil)
 (setq company-minimum-prefix-length 3)
 
@@ -286,9 +269,22 @@ In that case, insert the number."
 ;; DOOM EMACS key help
 (setq which-key-idle-delay 0.2) ;; I need the help, I really do
 
-;; ispell
+;; Input Method
+(:if IS-MAC (use-package! rime
+    :init
+    :custom
+    (rime-librime-root "~/.emacs.d/librime/dist")
+    (rime-show-candidate 'posframe)
+    (rime-show-preedit 'inline)
+    (rime-user-data-dir "~/.emacs.d/.local/etc/rime/")
+    (rime-emacs-module-header-root "/opt/homebrew/Cellar/emacs-plus@28/28.1/include")
+    (setq rime-disable-predicates
+      '(rime-predicate-evil-mode-p
+        rime-predicate-after-alphabet-char-p
+        rime-predicate-prog-in-code-p))
+))
 
-
+(setq default-input-method "rime")
 ;; VISUALIZE
 
 ;; UI EMOJI
