@@ -59,4 +59,4 @@
 (package! company-org-roam)
 (package! org-roam-bibtex)
 (package! lsp-grammarly)
-;;(package! valign)
+(package! valign)

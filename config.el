@@ -61,7 +61,7 @@
 ;; wasn't installed correctly. Font issues are rarely Doom issues!
 ;; DON'T use (`font-family-list'), it's unreliable on Linux
 ;; org mode table
-;;(add-hook 'org-mode-hook #'valign-mode)
+(add-hook 'org-mode-hook #'valign-mode)
 
 
 ;; There are two ways to load a theme. Both assume the theme is installed and
@@ -111,7 +111,7 @@
              org-roam-capture
              org-roam-node-find)
   :custom
-  (org-roam-directory "~/.org/pages")
+  (org-roam-directory "~/.org")
   (org-roam-dailies-directory "~/.org/journals")
   (org-roam-db-gc-threshold most-positive-fixnum)
   (setq org-roam-file-extensions '("org"))
@@ -122,7 +122,7 @@
        :if-new (file+head "%<%Y_%m_%d>.org" "%<%Y/%m/%d>\n* tags\n"))))
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
-                 :target (file+head "${slug}.org"
+                 :target (file+head "pages/${slug}.org"
                                     "${title}\n#+public: true\n* tags\n")
                  :unnarrowed t)
                 ))
@@ -196,50 +196,71 @@
   (push 'company-org-roam company-backends))
 ;; Company Mode
 ;; Plain Text Company
-(setq company-idle-delay 0.2)
-(setq company-show-quick-access t)
-(setq company-elisp-detect-function-context nil)
-(setq company-minimum-prefix-length 2)
+(use-package company
+  :init
+  (defun hz-company-search-toggle ()
+    (interactive)
+    (if company-search-mode
+	(company-search-abort)
+      (company-search-candidates)))
+   :bind
+   (:map company-active-map
+	("<tab>" . hz-company-search-toggle)
+	("<f1>" . company-search-repeat-forward)
+	("<f2>" . company-search-repeat-backward)
+	("SPC" . company-complete-selection)
+	("<return>" . company-abort)
+
+	:map company-search-map
+	("<tab>" . hz-company-search-toggle)
+	("<f1>" . company-search-repeat-forward)
+	("<f2>" . company-search-repeat-backward)
+	("SPC" . company-complete-selection)
+	("<return>" . company-abort))
+  :config
+  (setq company-tooltip-limit 10)
+  (defun hz-company-complete-number ()
+    "Convert the company-quick-access-keys to the candidates' row NUMBER visible on the tooltip,
+     and then feed it to `company-complete-number' to quickly select and insert company candidates.
+     If the currently entered character is belongs to company-quick-access-keys and a part of the candidate simultaneously,
+     append it to the currently entered string to construct new company-prefix."
+    (interactive)
+    (let* ((k (this-command-keys))
+           (re (concat "^" company-prefix k)))
+
+      (if (cl-find-if (lambda (s) (string-match re s))
+                      company-candidates)
+	  (self-insert-command 1)
+	(company-complete-number
+	 (cond
+	  ((equal k "1") 1)
+	  ((equal k "2") 2)
+	  ((equal k "3") 3)
+	  ((equal k "4") 4)
+	  ((equal k "5") 5)
+	  ((equal k "6") 6)
+	  ((equal k "7") 7)
+	  ((equal k "8") 8)
+	  ((equal k "9") 9)
+	  ((equal k "0") 10)
+	  )
+	 ))))
+
+  (let ((c-a-map company-active-map)
+	(c-s-map company-search-map))
+    (mapc (lambda (x)
+	    (define-key c-a-map (format "%s" x) #'hz-company-complete-number))
+	  '(1 2 3 4 5 6 7 8 9 0))
+    (mapc (lambda (x)
+	    (define-key c-s-map (format "%s" x) #'hz-company-complete-number))
+	(setq company-idle-delay 0.2)
+        (setq company-show-quick-access t)
+        (setq company-elisp-detect-function-context nil)
+        (setq company-minimum-prefix-length 2)  '(1 2 3 4 5 6 7 8 9 0)))
+)
 
 
-(defun ora-company-number ()
-  "Forward to `company-complete-number'.
-
-Unless the number is potentially part of the candidate.
-In that case, insert the number."
-  (interactive)
-  (let* ((k (this-command-keys))
-         (re (concat "^" company-prefix k)))
-    (if (or (cl-find-if (lambda (s) (string-match re s))
-                        company-candidates)
-            (> (string-to-number k)
-               (length company-candidates))
-            (looking-back "[0-9]+\\.[0-9]*" (line-beginning-position)))
-        (self-insert-command 1)
-      (company-complete-number
-       (if (equal k "0")
-           10
-         (string-to-number k))))))
-
-(defun ora--company-good-prefix-p (orig-fn prefix)
-  (unless (and (stringp prefix) (string-match-p "\\`[0-9]+\\'" prefix))
-    (funcall orig-fn prefix)))
-
-(let ((map company-active-map))
-  (mapc (lambda (x) (define-key map (format "%d" x) 'ora-company-number))
-        (number-sequence 0 9))
-  (define-key map " " (lambda ()
-                        (interactive)
-                        (company-abort)
-                        (self-insert-command 1)))
-  (define-key map (kbd "<return>") nil))
-;; LSP MODE
-(use-package lsp-grammarly
-  :hook (text-mode . (lambda ()
-                       (require 'lsp-grammarly)
-                       (lsp))))  ; or lsp-deferred
-
-;; Which-key
+;;Which-key
 ;; DOOM EMACS key help
 (setq which-key-idle-delay 0.5) ;; I need the help, I really do
 
@@ -251,8 +272,7 @@ In that case, insert the number."
     (rime-show-preedit 'inline)
     (rime-user-data-dir "~/.emacs.d/.local/etc/rime/")
     (rime-emacs-module-header-root "/opt/homebrew/Cellar/emacs-plus@28/28.1/include")
-))
-(setq default-input-method "rime")
+    (setq default-input-method "rime")))
 
 ;;
 ;; Some functions copied from `pyim', thanks for tumashu@github.com .
