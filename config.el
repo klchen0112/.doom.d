@@ -52,42 +52,22 @@
 ;;
 ;; See 'C-h v doom-font' for documentation and more examples of what they
 ;; accept. For example:
-;;
-;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
-;;    doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
-;;
+(setq doom-font (font-spec :family "Fira Code" :size 16)
+      doom-unicode-font (font-spec :family "PingFang SC"))
+
 ;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
 ;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
 ;; refresh your font settings. If Emacs still can't find your font, it likely
 ;; wasn't installed correctly. Font issues are rarely Doom issues!
+;; DON'T use (`font-family-list'), it's unreliable on Linux
+;; org mode table
+;;(add-hook 'org-mode-hook #'valign-mode)
 
-(defun +my/better-font()
-  (interactive)
-  ;; english font
-  (if (display-graphic-p)
-      (progn
-        (set-face-attribute 'default nil :font (format "%s:pixelsize=%d" "Fira Code" 17)) ;; 11 13 17 19 23
-        ;; chinese font
-        (dolist (charset '(kana han symbol cjk-misc bopomofo))
-          (set-fontset-font (frame-parameter nil 'font)
-                            charset
-                            (font-spec :family "Sarasa Mono SC")))) ;; 14 16 20 22 28
-    ))
-
-(defun +my|init-font(frame)
-  (with-selected-frame frame
-    (if (display-graphic-p)
-        (+my/better-font))))
-
-(if (and (fboundp 'daemonp) (daemonp))
-    (add-hook 'after-make-frame-functions #'+my|init-font)
-  (+my/better-font))
 
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
-
+(setq doom-theme 'doom-vibrant)
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
 (setq display-line-numbers-type 'relative)
@@ -131,8 +111,8 @@
              org-roam-capture
              org-roam-node-find)
   :custom
-  (org-roam-directory "~/.org")
-  (org-roam-dailies-directory "journals")
+  (org-roam-directory "~/.org/pages")
+  (org-roam-dailies-directory "~/.org/journals")
   (org-roam-db-gc-threshold most-positive-fixnum)
   (setq org-roam-file-extensions '("org"))
   (setq org-id-link-to-org-use-id t)
@@ -142,7 +122,7 @@
        :if-new (file+head "%<%Y_%m_%d>.org" "%<%Y/%m/%d>\n* tags\n"))))
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
-                 :target (file+head "~/.org/pages/${slug}.org"
+                 :target (file+head "${slug}.org"
                                     "${title}\n#+public: true\n* tags\n")
                  :unnarrowed t)
                 ))
@@ -201,27 +181,26 @@
    :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
 ;; org latex
 (add-hook 'org-mode-hook 'org-fragtog-mode)
-
+;; org roam bibtex
+(use-package org-roam-bibtex
+  :after org-roam
+  :init
+  (org-roam-bibtex-mode 1)
+  :custom
+  (orb-note-actions-interface 'default)
+)
+;; org-roam-company
+(use-package company-org-roam
+  :after org-roam
+  :config
+  (push 'company-org-roam company-backends))
 ;; Company Mode
 ;; Plain Text Company
-(require 'company-elisp)
 (setq company-idle-delay 0.2)
 (setq company-show-quick-access t)
 (setq company-elisp-detect-function-context nil)
-(setq company-minimum-prefix-length 3)
+(setq company-minimum-prefix-length 2)
 
-(setq company-frontends
-      '(company-pseudo-tooltip-unless-just-one-frontend
-        company-preview-if-just-one-frontend))
-
-(setq company-backends
-      '(company-elisp
-        ;; company-semantic
-        company-capf
-        (company-dabbrev-code company-gtags company-etags
-         company-keywords)
-        company-files
-        company-dabbrev))
 
 (defun ora-company-number ()
   "Forward to `company-complete-number'.
@@ -254,37 +233,94 @@ In that case, insert the number."
                         (company-abort)
                         (self-insert-command 1)))
   (define-key map (kbd "<return>") nil))
-(set-company-backend!
-  '(text-mode
-    markdown-mode
-    gfm-mode)
-  '(:seperate
-    company-ispell
-    company-files
-    company-yasnippet))
 ;; LSP MODE
-
+(use-package lsp-grammarly
+  :hook (text-mode . (lambda ()
+                       (require 'lsp-grammarly)
+                       (lsp))))  ; or lsp-deferred
 
 ;; Which-key
 ;; DOOM EMACS key help
-(setq which-key-idle-delay 0.2) ;; I need the help, I really do
+(setq which-key-idle-delay 0.5) ;; I need the help, I really do
 
 ;; Input Method
-(:if IS-MAC (use-package! rime
-    :init
+(if IS-MAC (use-package! rime
     :custom
     (rime-librime-root "~/.emacs.d/librime/dist")
     (rime-show-candidate 'posframe)
     (rime-show-preedit 'inline)
     (rime-user-data-dir "~/.emacs.d/.local/etc/rime/")
     (rime-emacs-module-header-root "/opt/homebrew/Cellar/emacs-plus@28/28.1/include")
-    (setq rime-disable-predicates
-      '(rime-predicate-evil-mode-p
-        rime-predicate-after-alphabet-char-p
-        rime-predicate-prog-in-code-p))
 ))
-
 (setq default-input-method "rime")
+
+;;
+;; Some functions copied from `pyim', thanks for tumashu@github.com .
+;;
+(defun +rime--char-before-to-string (num)
+  "得到光标前第 `num' 个字符，并将其转换为字符串。"
+  (let* ((point (point))
+         (point-before (- point num)))
+    (when (and (> point-before 0)
+               (char-before point-before))
+      (char-to-string (char-before point-before)))))
+
+(defun +rime--string-match-p (regexp string &optional start)
+  "与 `string-match-p' 类似，如果 REGEXP 和 STRING 是非字符串时，
+不会报错。"
+  (and (stringp regexp)
+       (stringp string)
+       (string-match-p regexp string start)))
+
+(defun +rime--probe-auto-english ()
+  "激活这个探针函数后，使用下面的规则自动切换中英文输入：
+
+1. 当前字符为英文字符（不包括空格）时，输入下一个字符为英文字符
+2. 当前字符为中文字符或输入字符为行首字符时，输入的字符为中文字符
+3. 以单个空格为界，自动切换中文和英文字符
+   即，形如 `我使用 emacs 编辑此函数' 的句子全程自动切换中英输入法
+"
+  (let ((str-before-1 (+rime--char-before-to-string 0))
+        (str-before-2 (+rime--char-before-to-string 1)))
+    (unless (string= (buffer-name) " *temp*")
+      (if (> (point) (save-excursion (back-to-indentation)
+                                     (point)))
+          (or (if (+rime--string-match-p " " str-before-1)
+                  (+rime--string-match-p "\\cc" str-before-2)
+                (not (+rime--string-match-p "\\cc" str-before-1))))))))
+
+(defun +rime--beancount-p ()
+  "当前为`beancount-mode'，且光标在注释或字符串当中。"
+  (when (derived-mode-p 'beancount-mode)
+    (not (or (nth 3 (syntax-ppss))
+             (nth 4 (syntax-ppss))))))
+
+(defun +rime--evil-mode-p ()
+  "检测当前是否在 `evil' 模式下。"
+  (or (evil-normal-state-p)
+      (evil-visual-state-p)
+      (evil-motion-state-p)
+      (evil-operator-state-p)))
+
+(defun +rime-english-prober()
+  "自定义英文输入探针函数，用于在不同mode下使用不同的探针列表"
+  (let ((use-en (or (button-at (point))
+                    (+rime--evil-mode-p))))
+    (if (derived-mode-p 'telega-chat-mode)
+        (setq use-en (or use-en
+                         (+rime--probe-auto-english)))
+      (when (derived-mode-p 'text-mode)
+        (setq use-en (or use-en
+                         (+rime--probe-auto-english))))
+      (when (derived-mode-p 'prog-mode 'conf-mode)
+        (setq use-en (or use-en
+                         (rime--after-alphabet-char-p))))
+      (setq use-en (or use-en
+                       (rime--prog-in-code-p)
+                       (+rime--beancount-p))))
+    use-en))
+
+(setq rime-disable-predicates '(+rime-english-prober))
 ;; VISUALIZE
 
 ;; UI EMOJI

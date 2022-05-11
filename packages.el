@@ -56,3 +56,7 @@
 (package! org-fragtog
   :recipe (:host github :repo "io12/org-fragtog"))
 (package! rime)
+(package! company-org-roam)
+(package! org-roam-bibtex)
+(package! lsp-grammarly)
+;;(package! valign)
