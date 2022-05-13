@@ -83,6 +83,22 @@
       org-export-in-background t                  ; run export processes in external emacs process
       org-catch-invisible-edits 'smart            ; try not to accidently do weird stuff in invisible regions
       org-export-with-sub-superscripts '{})       ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+;;---------------------------------------------
+;;org-agenda-time-grid
+;;--------------------------------------------
+(setq org-agenda-time-grid (quote ((daily today require-timed)
+                                   (300
+                                    600
+                                    900
+                                    1200
+                                    1500
+                                    1800
+                                    2100
+                                    2400)
+                                   "......"
+                                   "-----------------------------------------------------"
+                                   )))
+
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
 ;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
 ;;
@@ -163,6 +179,75 @@
           org-roam-ui-update-on-save t
           org-roam-ui-open-on-start t)
     )
+;;(after! org-roam
+;;  ;;* dynamic agenda https://github.com/brianmcgillion/doomd/blob/master/config.org
+;;  ;; https://d12frosted.io/posts/2021-01-16-task-management-with-roam-vol5.html
+;;  ;; The 'roam-agenda' tag is used to tell vulpea that there is a todo item in this file
+;;  (add-to-list 'org-tags-exclude-from-inheritance "roam-agenda")
+;;
+;;  (require 'vulpea)
+;;
+;;  (defun vulpea-buffer-p ()
+;;    "Return non-nil if the currently visited buffer is a note."
+;;    (and buffer-file-name
+;;         (string-prefix-p
+;;          (expand-file-name (file-name-as-directory org-roam-directory))
+;;          (file-name-directory buffer-file-name))))
+;;
+;;  (defun vulpea-project-p ()
+;;    "Return non-nil if current buffer has any todo entry.
+;;
+;;TODO entries marked as done are ignored, meaning the this
+;;function returns nil if current buffer contains only completed
+;;tasks."
+;;    (seq-find                                 ; (3)
+;;     (lambda (type)
+;;       (eq type 'todo))
+;;     (org-element-map                         ; (2)
+;;         (org-element-parse-buffer 'headline) ; (1)
+;;         'headline
+;;       (lambda (h)
+;;         (org-element-property :todo-type h)))))
+;;
+;;  (defun vulpea-project-update-tag (&optional arg)
+;;    "Update PROJECT tag in the current buffer."
+;;    (interactive "P")
+;;    (when (and (not (active-minibuffer-window))
+;;               (vulpea-buffer-p))
+;;      (save-excursion
+;;        (goto-char (point-min))
+;;        (let* ((tags (vulpea-buffer-tags-get))
+;;               (original-tags tags))
+;;          (if (vulpea-project-p)
+;;              (setq tags (cons "roam-agenda" tags))
+;;            (setq tags (remove "roam-agenda" tags)))
+;;
+;;          ;; cleanup duplicates
+;;          (setq tags (seq-uniq tags))
+;;
+;;          ;; update tags if changed
+;;          (when (or (seq-difference tags original-tags)
+;;                    (seq-difference original-tags tags))
+;;            (apply #'vulpea-buffer-tags-set tags))))))
+;;
+;;  ;; https://systemcrafters.net/build-a-second-brain-in-emacs/5-org-roam-hacks/
+;;  (defun my/org-roam-filter-by-tag (tag-name)
+;;    (lambda (node)
+;;      (member tag-name (org-roam-node-tags node))))
+;;
+;;  (defun my/org-roam-list-notes-by-tag (tag-name)
+;;    (mapcar #'org-roam-node-file
+;;            (seq-filter
+;;             (my/org-roam-filter-by-tag tag-name)
+;;             (org-roam-node-list))))
+;;
+;;  (defun dynamic-agenda-files-advice (orig-val)
+;;    (let ((roam-agenda-files (delete-dups (my/org-roam-list-notes-by-tag "roam-agenda"))))
+;;      (cl-union orig-val roam-agenda-files :test #'equal)))
+;;
+;;  (add-hook 'before-save-hook #'vulpea-project-update-tag)
+;;  (advice-add 'org-agenda-files :filter-return #'dynamic-agenda-files-advice)
+;;)
 
 ;;自动创建笔记的创建时间和修改时间
 (use-package! org-roam-timestamps
@@ -196,74 +281,45 @@
   (push 'company-org-roam company-backends))
 ;; Company Mode
 ;; Plain Text Company
-(use-package company
-  :init
-  (defun hz-company-search-toggle ()
-    (interactive)
-    (if company-search-mode
-	(company-search-abort)
-      (company-search-candidates)))
-   :bind
-   (:map company-active-map
-	("<tab>" . hz-company-search-toggle)
-	("<f1>" . company-search-repeat-forward)
-	("<f2>" . company-search-repeat-backward)
-	("SPC" . company-complete-selection)
-	("<return>" . company-abort)
-
-	:map company-search-map
-	("<tab>" . hz-company-search-toggle)
-	("<f1>" . company-search-repeat-forward)
-	("<f2>" . company-search-repeat-backward)
-	("SPC" . company-complete-selection)
-	("<return>" . company-abort))
-  :config
-  (setq company-tooltip-limit 10)
-  (defun hz-company-complete-number ()
-    "Convert the company-quick-access-keys to the candidates' row NUMBER visible on the tooltip,
-     and then feed it to `company-complete-number' to quickly select and insert company candidates.
-     If the currently entered character is belongs to company-quick-access-keys and a part of the candidate simultaneously,
-     append it to the currently entered string to construct new company-prefix."
-    (interactive)
-    (let* ((k (this-command-keys))
-           (re (concat "^" company-prefix k)))
-
-      (if (cl-find-if (lambda (s) (string-match re s))
-                      company-candidates)
-	  (self-insert-command 1)
-	(company-complete-number
-	 (cond
-	  ((equal k "1") 1)
-	  ((equal k "2") 2)
-	  ((equal k "3") 3)
-	  ((equal k "4") 4)
-	  ((equal k "5") 5)
-	  ((equal k "6") 6)
-	  ((equal k "7") 7)
-	  ((equal k "8") 8)
-	  ((equal k "9") 9)
-	  ((equal k "0") 10)
-	  )
-	 ))))
-
-  (let ((c-a-map company-active-map)
-	(c-s-map company-search-map))
-    (mapc (lambda (x)
-	    (define-key c-a-map (format "%s" x) #'hz-company-complete-number))
-	  '(1 2 3 4 5 6 7 8 9 0))
-    (mapc (lambda (x)
-	    (define-key c-s-map (format "%s" x) #'hz-company-complete-number))
-	(setq company-idle-delay 0.2)
-        (setq company-show-quick-access t)
-        (setq company-elisp-detect-function-context nil)
-        (setq company-minimum-prefix-length 2)  '(1 2 3 4 5 6 7 8 9 0)))
-)
-
-
 ;;Which-key
 ;; DOOM EMACS key help
-(setq which-key-idle-delay 0.5) ;; I need the help, I really do
+(setq company-idle-delay 0.2)
+(setq company-show-quick-access t)
+(setq company-elisp-detect-function-context nil)
+(setq company-minimum-prefix-length 2)
+(use-package company
+  :init
+  :config
+  (defun ora-company-number ()
+  "Forward to `company-complete-number'.
+Unless the number is potentially part of the candidate.
+In that case, insert the number."
+  (interactive)
+  (let* ((k (this-command-keys))
+         (re (concat "^" company-prefix k)))
+    (if (or (cl-find-if (lambda (s) (string-match re s))
+                        company-candidates)
+            (> (string-to-number k)
+               (length company-candidates))
+            (looking-back "[0-9]+\\.[0-9]*" (line-beginning-position)))
+        (self-insert-command 1)
+      (company-complete-number
+       (if (equal k "0")
+           10
+         (string-to-number k))))))
 
+(defun ora--company-good-prefix-p (orig-fn prefix)
+  (unless (and (stringp prefix) (string-match-p "\\`[0-9]+\\'" prefix))
+    (funcall orig-fn prefix)))
+(advice-add 'company--good-prefix-p :around #'ora--company-good-prefix-p)
+(let ((map company-active-map))
+  (setq company-quick-access-keys '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9"))
+  (define-key map " " (lambda ()
+                        (interactive)
+                        (company-abort)
+                        (self-insert-command 1)))
+  (define-key map (kbd "<return>") nil)))
+(setq which-key-idle-delay 0.5) ;; I need the help, I really do
 ;; Input Method
 (if IS-MAC (use-package! rime
     :custom
