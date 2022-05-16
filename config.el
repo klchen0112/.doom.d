@@ -98,7 +98,38 @@
                                    "......"
                                    "-----------------------------------------------------"
                                    )))
-
+(setq +org-capture-todo-file "~/.org/pages/todo.org")
+(setq +org-capture-notes-file "~/.org/pages/notes.org")
+(setq +org-capture-journal-file "~/.org/pages/journal.org")
+(setq +org-capture-project-todo-file "~/.org/pages/projects.org")
+(setq +org-capture-templates '(("t" "Personal todo" entry
+  (file+headline +org-capture-todo-file "Inbox")
+  "* [ ] %?\n%i\n%a" :prepend t)
+  ("T" "Tickler" entry
+        (file+headline "~/.org/pages/tickler.org" "Tickler")
+                               "* %i%? \n %U")
+ ("n" "Personal notes" entry
+  (file+headline +org-capture-notes-file "Inbox")
+  "* %u %?\n%i\n%a" :prepend t)
+ ;;("j" "Journal" entry ;; use org roam dalies instead
+ ;; (file+olp+datetree +org-capture-journal-file)
+ ;; "* %U %?\n%i\n%a" :prepend t)
+ ("p" "Templates for projects")
+ ("pt" "Project-local todo" entry
+  (file+headline +org-capture-project-todo-file "Inbox")
+  "* TODO %?\n%i\n%a" :prepend t)
+ ("pn" "Project-local notes" entry
+  (file+headline +org-capture-project-notes-file "Inbox")
+  "* %U %?\n%i\n%a" :prepend t)
+ ("pc" "Project-local changelog" entry
+  (file+headline +org-capture-project-changelog-file "Unreleased")
+  "* %U %?\n%i\n%a" :prepend t)
+ ))
+(setq org-agenda-files '("~/.org/GTD.org"
+                         "~/.org/todo.org"
+                         "~/.org/journal.org"
+                         "~/.org/projects.org"
+                         "~/.org/tickler.org"))
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
 ;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
 ;;
@@ -135,11 +166,11 @@
   (setq org-roam-completion-everywhere t)
   (org-roam-dailies-capture-templates
     '(("d" "default" entry "* %<%I:%M %p>: %?"
-       :if-new (file+head "%<%Y_%m_%d>.org" "%<%Y/%m/%d>\n* tags\n"))))
+       :if-new (file+head "%<%Y_%m_%d>.org" "%<%Y/%m/%d>\n#+title: ${title}\n#+public: true\n* tags\n"))))
   (org-roam-capture-templates '(;; ... other templates ;; 设置 capture 模板
                 ("d" "default" plain "%?"
                  :target (file+head "pages/${slug}.org"
-                                    "${title}\n#+public: true\n* tags\n")
+                                    "#+title: ${title}\n#+public: true\n* tags\n")
                  :unnarrowed t)
                 ))
   :bind (("C-c n a" . org-id-get-create)
@@ -164,7 +195,154 @@
   )
 (use-package! websocket
     :after org-roam)
+(defun vulpea-project-p ()
+  "Return non-nil if current buffer has any todo entry.
 
+TODO entries marked as done are ignored, meaning the this
+function returns nil if current buffer contains only completed
+tasks."
+  (seq-find                                 ; (3)
+   (lambda (type)
+     (eq type 'todo))
+   (org-element-map                         ; (2)
+       (org-element-parse-buffer 'headline) ; (1)
+       'headline
+     (lambda (h)
+       (org-element-property :todo-type h)))))
+
+(defun vulpea-project-update-tag ()
+    "Update PROJECT tag in the current buffer."
+    (when (and (not (active-minibuffer-window))
+               (vulpea-buffer-p))
+      (save-excursion
+        (goto-char (point-min))
+        (let* ((tags (vulpea-buffer-tags-get))
+               (original-tags tags))
+          (if (vulpea-project-p)
+              (setq tags (cons "project" tags))
+            (setq tags (remove "project" tags)))
+
+          ;; cleanup duplicates
+          (setq tags (seq-uniq tags))
+
+          ;; update tags if changed
+          (when (or (seq-difference tags original-tags)
+                    (seq-difference original-tags tags))
+            (apply #'vulpea-buffer-tags-set tags))))))
+
+(defun vulpea-buffer-p ()
+  "Return non-nil if the currently visited buffer is a note."
+  (and buffer-file-name
+       (string-prefix-p
+        (expand-file-name (file-name-as-directory org-roam-directory))
+        (file-name-directory buffer-file-name))))
+
+(defun vulpea-project-files ()
+    "Return a list of note files containing 'project' tag." ;
+    (seq-uniq
+     (seq-map
+      #'car
+      (org-roam-db-query
+       [:select [nodes:file]
+        :from tags
+        :left-join nodes
+        :on (= tags:node-id nodes:id)
+        :where (like tag (quote "%\"project\"%"))]))))
+
+(defun vulpea-agenda-files-update (&rest _)
+  "Update the value of `org-agenda-files'."
+  (setq org-agenda-files (vulpea-project-files)))
+
+(add-hook 'find-file-hook #'vulpea-project-update-tag)
+(add-hook 'before-save-hook #'vulpea-project-update-tag)
+
+(advice-add 'org-agenda :before #'vulpea-agenda-files-update)
+(advice-add 'org-todo-list :before #'vulpea-agenda-files-update)
+
+;; functions borrowed from `vulpea' library
+;; https://github.com/d12frosted/vulpea/blob/6a735c34f1f64e1f70da77989e9ce8da7864e5ff/vulpea-buffer.el
+
+(defun vulpea-buffer-tags-get ()
+  "Return filetags value in current buffer."
+  (vulpea-buffer-prop-get-list "filetags" "[ :]"))
+
+(defun vulpea-buffer-tags-set (&rest tags)
+  "Set TAGS in current buffer.
+
+If filetags value is already set, replace it."
+  (if tags
+      (vulpea-buffer-prop-set
+       "filetags" (concat ":" (string-join tags ":") ":"))
+    (vulpea-buffer-prop-remove "filetags")))
+
+(defun vulpea-buffer-tags-add (tag)
+  "Add a TAG to filetags in current buffer."
+  (let* ((tags (vulpea-buffer-tags-get))
+         (tags (append tags (list tag))))
+    (apply #'vulpea-buffer-tags-set tags)))
+
+(defun vulpea-buffer-tags-remove (tag)
+  "Remove a TAG from filetags in current buffer."
+  (let* ((tags (vulpea-buffer-tags-get))
+         (tags (delete tag tags)))
+    (apply #'vulpea-buffer-tags-set tags)))
+
+(defun vulpea-buffer-prop-set (name value)
+  "Set a file property called NAME to VALUE in buffer file.
+If the property is already set, replace its value."
+  (setq name (downcase name))
+  (org-with-point-at 1
+    (let ((case-fold-search t))
+      (if (re-search-forward (concat "^#\\+" name ":\\(.*\\)")
+                             (point-max) t)
+          (replace-match (concat "#+" name ": " value) 'fixedcase)
+        (while (and (not (eobp))
+                    (looking-at "^[#:]"))
+          (if (save-excursion (end-of-line) (eobp))
+              (progn
+                (end-of-line)
+                (insert "\n"))
+            (forward-line)
+            (beginning-of-line)))
+        (insert "#+" name ": " value "\n")))))
+
+(defun vulpea-buffer-prop-set-list (name values &optional separators)
+  "Set a file property called NAME to VALUES in current buffer.
+VALUES are quoted and combined into single string using
+`combine-and-quote-strings'.
+If SEPARATORS is non-nil, it should be a regular expression
+matching text that separates, but is not part of, the substrings.
+If nil it defaults to `split-string-default-separators', normally
+\"[ \f\t\n\r\v]+\", and OMIT-NULLS is forced to t.
+If the property is already set, replace its value."
+  (vulpea-buffer-prop-set
+   name (combine-and-quote-strings values separators)))
+
+(defun vulpea-buffer-prop-get (name)
+  "Get a buffer property called NAME as a string."
+  (org-with-point-at 1
+    (when (re-search-forward (concat "^#\\+" name ": \\(.*\\)")
+                             (point-max) t)
+      (buffer-substring-no-properties
+       (match-beginning 1)
+       (match-end 1)))))
+
+(defun vulpea-buffer-prop-get-list (name &optional separators)
+  "Get a buffer property NAME as a list using SEPARATORS.
+If SEPARATORS is non-nil, it should be a regular expression
+matching text that separates, but is not part of, the substrings.
+If nil it defaults to `split-string-default-separators', normally
+\"[ \f\t\n\r\v]+\", and OMIT-NULLS is forced to t."
+  (let ((value (vulpea-buffer-prop-get name)))
+    (when (and value (not (string-empty-p value)))
+      (split-string-and-unquote value separators))))
+
+(defun vulpea-buffer-prop-remove (name)
+  "Remove a buffer property called NAME."
+  (org-with-point-at 1
+    (when (re-search-forward (concat "\\(^#\\+" name ":.*\n?\\)")
+                             (point-max) t)
+      (replace-match ""))))
 (use-package! org-roam-ui
     :after org-roam ;; or :after org
 ;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
@@ -177,77 +355,8 @@
     (setq org-roam-ui-sync-theme t
           org-roam-ui-follow t
           org-roam-ui-update-on-save t
-          org-roam-ui-open-on-start t)
-    )
-;;(after! org-roam
-;;  ;;* dynamic agenda https://github.com/brianmcgillion/doomd/blob/master/config.org
-;;  ;; https://d12frosted.io/posts/2021-01-16-task-management-with-roam-vol5.html
-;;  ;; The 'roam-agenda' tag is used to tell vulpea that there is a todo item in this file
-;;  (add-to-list 'org-tags-exclude-from-inheritance "roam-agenda")
-;;
-;;  (require 'vulpea)
-;;
-;;  (defun vulpea-buffer-p ()
-;;    "Return non-nil if the currently visited buffer is a note."
-;;    (and buffer-file-name
-;;         (string-prefix-p
-;;          (expand-file-name (file-name-as-directory org-roam-directory))
-;;          (file-name-directory buffer-file-name))))
-;;
-;;  (defun vulpea-project-p ()
-;;    "Return non-nil if current buffer has any todo entry.
-;;
-;;TODO entries marked as done are ignored, meaning the this
-;;function returns nil if current buffer contains only completed
-;;tasks."
-;;    (seq-find                                 ; (3)
-;;     (lambda (type)
-;;       (eq type 'todo))
-;;     (org-element-map                         ; (2)
-;;         (org-element-parse-buffer 'headline) ; (1)
-;;         'headline
-;;       (lambda (h)
-;;         (org-element-property :todo-type h)))))
-;;
-;;  (defun vulpea-project-update-tag (&optional arg)
-;;    "Update PROJECT tag in the current buffer."
-;;    (interactive "P")
-;;    (when (and (not (active-minibuffer-window))
-;;               (vulpea-buffer-p))
-;;      (save-excursion
-;;        (goto-char (point-min))
-;;        (let* ((tags (vulpea-buffer-tags-get))
-;;               (original-tags tags))
-;;          (if (vulpea-project-p)
-;;              (setq tags (cons "roam-agenda" tags))
-;;            (setq tags (remove "roam-agenda" tags)))
-;;
-;;          ;; cleanup duplicates
-;;          (setq tags (seq-uniq tags))
-;;
-;;          ;; update tags if changed
-;;          (when (or (seq-difference tags original-tags)
-;;                    (seq-difference original-tags tags))
-;;            (apply #'vulpea-buffer-tags-set tags))))))
-;;
-;;  ;; https://systemcrafters.net/build-a-second-brain-in-emacs/5-org-roam-hacks/
-;;  (defun my/org-roam-filter-by-tag (tag-name)
-;;    (lambda (node)
-;;      (member tag-name (org-roam-node-tags node))))
-;;
-;;  (defun my/org-roam-list-notes-by-tag (tag-name)
-;;    (mapcar #'org-roam-node-file
-;;            (seq-filter
-;;             (my/org-roam-filter-by-tag tag-name)
-;;             (org-roam-node-list))))
-;;
-;;  (defun dynamic-agenda-files-advice (orig-val)
-;;    (let ((roam-agenda-files (delete-dups (my/org-roam-list-notes-by-tag "roam-agenda"))))
-;;      (cl-union orig-val roam-agenda-files :test #'equal)))
-;;
-;;  (add-hook 'before-save-hook #'vulpea-project-update-tag)
-;;  (advice-add 'org-agenda-files :filter-return #'dynamic-agenda-files-advice)
-;;)
+          org-roam-ui-open-on-start t))
+
 
 ;;自动创建笔记的创建时间和修改时间
 (use-package! org-roam-timestamps
@@ -328,8 +437,8 @@ In that case, insert the number."
     (rime-show-preedit 'inline)
     (rime-user-data-dir "~/.emacs.d/.local/etc/rime/")
     (rime-emacs-module-header-root "/opt/homebrew/Cellar/emacs-plus@28/28.1/include")
-    (setq default-input-method "rime")))
-
+    ))
+(setq default-input-method "rime")
 ;;
 ;; Some functions copied from `pyim', thanks for tumashu@github.com .
 ;;
@@ -397,6 +506,17 @@ In that case, insert the number."
     use-en))
 
 (setq rime-disable-predicates '(+rime-english-prober))
+;; keyfreq
+(setq keyfreq-mode 1)
+(setq keyfreq-autosave-mode 1)
+(use-package! keyfreq
+  :config
+  (setq keyfreq-excluded-commands
+      '(self-insert-command
+        forward-char
+        backward-char
+        previous-line
+        next-line)))
 ;; VISUALIZE
 
 ;; UI EMOJI

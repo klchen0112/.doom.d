@@ -60,3 +60,6 @@
 (package! lsp-grammarly)
 (package! valign)
 (package! vulpea)
+(package! keyfreq
+  :recipe (:host github :repo "dacap/keyfreq"
+           :files ("*.el")))
