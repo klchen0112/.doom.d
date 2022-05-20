@@ -10,9 +10,13 @@
 (setq user-full-name "klchen0112"
     user-mail-address "klchen0112@gmail.com")
 
+(setq max-specpdl-size 100000)
+(setq gcmh-high-cons-threshold most-positive-fixnum)
 ;; Simple Settings
-
 (setq-default
+ dired-dwim-target t
+ history-length 1000
+ create-lockfiles nil
  delete-by-moving-to-trash t                      ; Delete files to trash
  window-combination-resize t                      ; take new window space from all other windows (not just current)
  x-stretch-cursor t)                              ; Stretch cursor to the glyph width
@@ -76,60 +80,65 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/.org" ; let's put files here
-      org-use-property-inheritance t              ; it's convenient to have properties inherited
-      org-log-done 'time                          ; having the time a item is done sounds convenient
-      org-list-allow-alphabetical t               ; have a. A. a) A) list bullets
-      org-export-in-background t                  ; run export processes in external emacs process
-      org-catch-invisible-edits 'smart            ; try not to accidently do weird stuff in invisible regions
-      org-export-with-sub-superscripts '{})       ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+(after! org
+  (setq org-directory "~/.org") ; let's put files here
+  (setq org-use-property-inheritance t)              ; it's convenient to have properties inherited
+  (setq org-log-done 'time             )             ; having the time a item is done sounds convenient
+  (setq org-list-allow-alphabetical t  )             ; have a. A. a) A) list bullets
+  (setq org-export-in-background t)                  ; run export processes in external emacs process
+  (setq org-catch-invisible-edits 'smart)            ; try not to accidently do weird stuff in invisible regions
+  (setq org-export-with-sub-superscripts '{})        ; don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}
+  (setq +org-capture-todo-file "~/.org/pages/todo.org")
+  (setq +org-capture-notes-file "~/.org/pages/notes.org")
+  (setq +org-capture-journal-file "~/.org/pages/journal.org")
+  (setq +org-capture-project-todo-file "~/.org/pages/projects.org")
+  (setq +org-capture-templates '(("t" "Personal todo" entry
+                                  (file+headline +org-capture-todo-file "Inbox")
+                                  "* [ ] %?\n%i\n%a" :prepend t)
+                                 ("T" "Tickler" entry
+                                  (file+headline "~/.org/pages/tickler.org" "Tickler")
+                                  "* %i%? \n %U")
+                                 ("n" "Personal notes" entry
+                                  (file+headline +org-capture-notes-file "Inbox")
+                                  "* %u %?\n%i\n%a" :prepend t)
+                                 ;;("j" "Journal" entry ;; use org roam dalies instead
+                                 ;; (file+olp+datetree +org-capture-journal-file)
+                                 ;; "* %U %?\n%i\n%a" :prepend t)
+                                 ("p" "Templates for projects")
+                                 ("pt" "Project-local todo" entry
+                                  (file+headline +org-capture-project-todo-file "Inbox")
+                                  "* TODO %?\n%i\n%a" :prepend t)
+                                 ("pn" "Project-local notes" entry
+                                  (file+headline +org-capture-project-notes-file "Inbox")
+                                  "* %U %?\n%i\n%a" :prepend t)
+                                 ("pc" "Project-local changelog" entry
+                                  (file+headline +org-capture-project-changelog-file "Unreleased")
+                                  "* %U %?\n%i\n%a" :prepend t)
+                                 ))
+)
 ;;---------------------------------------------
 ;;org-agenda-time-grid
 ;;--------------------------------------------
-(setq org-agenda-time-grid (quote ((daily today require-timed)
-                                   (300
-                                    600
-                                    900
-                                    1200
-                                    1500
-                                    1800
-                                    2100
-                                    2400)
-                                   "......"
-                                   "-----------------------------------------------------"
-                                   )))
-(setq +org-capture-todo-file "~/.org/pages/todo.org")
-(setq +org-capture-notes-file "~/.org/pages/notes.org")
-(setq +org-capture-journal-file "~/.org/pages/journal.org")
-(setq +org-capture-project-todo-file "~/.org/pages/projects.org")
-(setq +org-capture-templates '(("t" "Personal todo" entry
-  (file+headline +org-capture-todo-file "Inbox")
-  "* [ ] %?\n%i\n%a" :prepend t)
-  ("T" "Tickler" entry
-        (file+headline "~/.org/pages/tickler.org" "Tickler")
-                               "* %i%? \n %U")
- ("n" "Personal notes" entry
-  (file+headline +org-capture-notes-file "Inbox")
-  "* %u %?\n%i\n%a" :prepend t)
- ;;("j" "Journal" entry ;; use org roam dalies instead
- ;; (file+olp+datetree +org-capture-journal-file)
- ;; "* %U %?\n%i\n%a" :prepend t)
- ("p" "Templates for projects")
- ("pt" "Project-local todo" entry
-  (file+headline +org-capture-project-todo-file "Inbox")
-  "* TODO %?\n%i\n%a" :prepend t)
- ("pn" "Project-local notes" entry
-  (file+headline +org-capture-project-notes-file "Inbox")
-  "* %U %?\n%i\n%a" :prepend t)
- ("pc" "Project-local changelog" entry
-  (file+headline +org-capture-project-changelog-file "Unreleased")
-  "* %U %?\n%i\n%a" :prepend t)
- ))
-(setq org-agenda-files '("~/.org/GTD.org"
-                         "~/.org/todo.org"
-                         "~/.org/journal.org"
-                         "~/.org/projects.org"
-                         "~/.org/tickler.org"))
+(after! org-agenda
+  (setq org-agenda-time-grid (quote ((daily today require-timed)
+                                     (300
+                                      600
+                                      900
+                                      1200
+                                      1500
+                                      1800
+                                      2100
+                                      2400)
+                                     "......"
+                                     "-----------------------------------------------------"
+                                     )))
+  (setq org-agenda-files '("~/.org/GTD.org"
+                           "~/.org/todo.org"
+                           "~/.org/journal.org"
+                           "~/.org/projects.org"
+                           "~/.org/tickler.org"))
+
+)
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
 ;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
 ;;
@@ -172,13 +181,18 @@
                  :target (file+head "pages/${slug}.org"
                                     "#+title: ${title}\n#+public: true\n* tags\n")
                  :unnarrowed t)
+                ;; bibliography note template
+                ("r" "bibliography reference" plain "%?"
+                 :if-new
+                 (file+head "references/${citekey}.org" "#+title: ${title}\n")
+                 :unnarrowed t)
                 ))
   :bind (("C-c n a" . org-id-get-create)
          ("C-c n l" . org-roam-buffer-toggle)
          ("C-c n f" . org-roam-node-find)
          ("C-c n g" . org-roam-graph)
          ("C-c n i" . org-roam-node-insert)
-         ("C-c n c" . org-roam-capture)
+         ("C-c n n" . org-roam-capture)
          ("C-c n r" . org-roam-ref-find)
          ("C-c n R" . org-roam-ref-add)
          ("C-c n s" . org-roam-db-sync)
@@ -382,24 +396,22 @@ If nil it defaults to `split-string-default-separators', normally
   (org-roam-bibtex-mode 1)
   :custom
   (orb-note-actions-interface 'default)
+  :config
+  (require 'org-ref)
 )
 ;; org-roam-company
-(use-package company-org-roam
-  :after org-roam
+(use-package! company-org-roam
+  :after company
   :config
   (push 'company-org-roam company-backends))
 ;; Company Mode
-;; Plain Text Company
-;;Which-key
-;; DOOM EMACS key help
-(setq company-idle-delay 0.2)
-(setq company-show-quick-access t)
-(setq company-elisp-detect-function-context nil)
-(setq company-minimum-prefix-length 2)
-(use-package company
-  :init
-  :config
-  (defun ora-company-number ()
+(after! company
+(setq   company-idle-delay 0.2
+        company-show-quick-access 1
+        company-transformers nil
+        company-elisp-detect-function-context nil
+        company-minimum-prefix-length 2)
+(defun ora-company-number ()
   "Forward to `company-complete-number'.
 Unless the number is potentially part of the candidate.
 In that case, insert the number."
@@ -416,19 +428,21 @@ In that case, insert the number."
        (if (equal k "0")
            10
          (string-to-number k))))))
-
 (defun ora--company-good-prefix-p (orig-fn prefix)
   (unless (and (stringp prefix) (string-match-p "\\`[0-9]+\\'" prefix))
     (funcall orig-fn prefix)))
 (advice-add 'company--good-prefix-p :around #'ora--company-good-prefix-p)
+
 (let ((map company-active-map))
-  (setq company-quick-access-keys '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9"))
+  (mapc (lambda (x) (define-key map (format "%d" x) 'ora-company-number))
+        (number-sequence 0 9))
   (define-key map " " (lambda ()
                         (interactive)
                         (company-abort)
                         (self-insert-command 1)))
-  (define-key map (kbd "<return>") nil)))
-(setq which-key-idle-delay 0.5) ;; I need the help, I really do
+  (define-key map (kbd "<return>") nil))
+)
+(setq which-key-idle-delay 0.3) ;; I need the help, I really do
 ;; Input Method
 (if IS-MAC (use-package! rime
     :custom
