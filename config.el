@@ -132,10 +132,10 @@
                                      "......"
                                      "-----------------------------------------------------"
                                      )))
-  (setq org-agenda-files '("~/.org/GTD.org"
-                           "~/.org/TODO.org"
-                           "~/.org/projects.org"
-                           "~/.org/tickler.org"))
+  (setq org-agenda-files '("~/.org/pages/GTD.org"
+                           "~/.org/pages/TODO.org"
+                           "~/.org/pages/projects.org"
+                           "~/.org/pages/tickler.org"))
 
 )
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
