@@ -1,32 +1,3 @@
-#+TITLE:  READEME
-* packages
-#+begin_src emacs-lisp conf :tangle packages.el
-;; -*- no-byte-compile: t; -*-
-;;; $DOOMDIR/packages.el
-
-(unpin! org-roam)
-(package! org-roam)
-(package! org-roam-ui)
-(package! org-roam-timestamps)
-(package! org-transclusion)
-;; (package! org-fragtog
-;;  :recipe (:host github :repo "io12/org-fragtog"))
-(package! xenops)
-(package! org-appear)
-(package! rime)
-;;(package! helm-bibtex)
-;;(package! org-roam-bibtex)
-(package! lsp-grammarly)
-(package! valign)
-(package! vulpea)
-(package! keyfreq
-  :recipe (:host github :repo "dacap/keyfreq"
-           :files ("*.el")))
-(package! minimap)
-#+end_src
-
-* Basic settings
-#+begin_src emacs-lisp conf :tangle config.el
 ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
 
 ;; Place your private configuration here! Remember, you do not need to run 'doom
@@ -57,16 +28,12 @@
       ;; scroll-preserve-screen-position 'always     ; Don't have `point' jump around
       scroll-margin 2)                            ; It's nice to maintain a little margin
 (setq which-key-idle-delay 0.3) ;; I need the help, I really do
-#+end_src
-* Global mode
-#+begin_src emacs-lisp conf :tangle config.el
+
 (display-time-mode 1)                             ; Enable time in the mode-line
 
 
 (global-subword-mode 1)                           ; Iterate through CamelCase words
-#+end_src
-* UI settings
-#+begin_src emacs-lisp conf :tangle config.el
+
 ;; Framing Size
 (add-to-list 'default-frame-alist '(height . 45))
 (add-to-list 'default-frame-alist '(width . 80))
@@ -110,15 +77,9 @@
 (setq display-line-numbers-type 'relative)
 (setq doom-fallback-buffer-name "► Doom"
       +doom-dashboard-name "► Doom")
-#+end_src
-** UI look
-#+begin_src emacs-lisp conf :tangle config.el
-(use-package! minimap)
-#+end_src
 
-* org mode
-** Org src
-#+begin_src emacs-lisp conf :tangle config.el
+(use-package! minimap)
+
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
 (after! org
@@ -157,11 +118,7 @@
                                   "* %U %?\n%i\n%a" :prepend t)
                                  ))
 )
-#+end_src
 
-** org-agenda
-
-#+begin_src emacs-lisp conf :tangle config.el
 ;;---------------------------------------------
 ;;org-agenda-time-grid
 ;;--------------------------------------------
@@ -179,9 +136,7 @@
                                      "-----------------------------------------------------"
                                      )))
 )
-#+end_src
-** org-roam
-#+begin_src emacs-lisp conf :tangle config.el
+
 (setq org-roam-directory "~/.org")
 (setq org-roam-dailies-directory "~/.org/journals")
 (use-package org-roam
@@ -277,10 +232,6 @@
 ;;  (require 'org-ref)
 ;;)
 
-#+end_src
-
-*** vulpea
-#+begin_src emacs-lisp conf :tangle config.el
 (use-package! vulpea
   :ensure t
   :after org-roam
@@ -288,9 +239,7 @@
   ;; persistence of meta values (see respective section in README to
   ;; find out what meta means)
   :hook ((org-roam-db-autosync-mode . vulpea-db-autosync-enable)))
-#+end_src
-**** vulpea auto tag
-#+begin_src emacs-lisp conf :tangle config.el
+
 (defun my-vulpea-insert-handle (note)
   "Hook to be called on NOTE after `vulpea-insert'."
   (when-let* ((title (vulpea-note-title note))
@@ -314,10 +263,7 @@
 
 (add-hook 'vulpea-insert-handle-functions
           #'my-vulpea-insert-handle)
-#+end_src
 
-**** vulpea dynamic agenda
-#+begin_src emacs-lisp conf :tangle config.el
 ;; from https://d12frosted.io/posts/2021-01-16-task-management-with-roam-vol5.html
 ;; he is the author of the vulpea
 (defun vulpea-project-p ()
@@ -384,9 +330,7 @@ tasks."
 (advice-add 'org-agenda :before #'vulpea-agenda-files-update)
 (advice-add 'org-todo-list :before #'vulpea-agenda-files-update)
             )
-#+end_src
-** org-mode enhance
-#+begin_src emacs-lisp conf :tangle config.el
+
 ;; org latex
 ;; (use-package org-fragtog
 ;;   :hook
@@ -399,9 +343,6 @@ tasks."
 ;; (add-hook 'org-mode-hook 'org-fragtog-mode)
 (add-hook 'org-mode-hook 'org-appear-mode)
 
-#+end_src
-* Company
-#+begin_src emacs-lisp conf :tangle config.el
 ;; Company Mode
 (after! company
 (setq   company-idle-delay 0.2
@@ -440,10 +381,7 @@ In that case, insert the number."
                         (self-insert-command 1)))
   (define-key map (kbd "<return>") nil))
 )
-#+end_src
 
-* Input Method
-#+begin_src emacs-lisp conf :tangle config.el
 ;; Input Method
 (if IS-MAC (use-package! rime
     :custom
@@ -521,15 +459,11 @@ In that case, insert the number."
     use-en))
 
 (setq rime-disable-predicates '(+rime-english-prober))
-#+end_src
-* Latex mode
-#+begin_src emacs-lisp conf :tangle config.el
+
 (use-package! xenops)
 (add-hook 'latex-mode-hook #'xenops-mode)
 (add-hook 'LaTeX-mode-hook #'xenops-mode)
-#+end_src
-* Other module
-#+begin_src emacs-lisp conf :tangle config.el
+
 ;; keyfreq
 (setq keyfreq-mode 1)
 (setq keyfreq-autosave-mode 1)
@@ -541,5 +475,3 @@ In that case, insert the number."
         backward-char
         previous-line
         next-line)))
-
-#+end_src
